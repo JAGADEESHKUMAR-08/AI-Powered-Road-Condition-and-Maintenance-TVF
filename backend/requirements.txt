@@ -3,8 +3,10 @@ uvicorn
 python-multipart
 torch
 torchvision
+ultralytics
 opencv-python
 numpy
+pandas
 Pillow
 requests
 geopy
