@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+torch
+torchvision
+opencv-python
+numpy
+Pillow
+requests
+geopy
+psycopg2-binary
+postgis
