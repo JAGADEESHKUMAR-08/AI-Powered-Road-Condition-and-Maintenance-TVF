@@ -62,6 +62,28 @@ def extract_bbox_info(xyxy):
         "y_max": float(xyxy[3])
     }
 
+def visual_anomaly_fallback(img):
+    """Estimate image-specific surface anomaly when no trained defect model exists."""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 80, 160)
+    edge_density = float(np.count_nonzero(edges)) / edges.size
+    dark_ratio = float(np.count_nonzero(gray < 70)) / gray.size
+    texture = min(float(cv2.Laplacian(gray, cv2.CV_64F).var()) / 1200, 1.0)
+    score = round(min((edge_density * 110) + (dark_ratio * 25) + (texture * 25), 100), 2)
+    if score < 12:
+        return None
+    severity = "Critical" if score >= 80 else "High" if score >= 60 else "Medium" if score >= 35 else "Low"
+    return {
+        "type": "Other",
+        "confidence": round(min(0.45 + texture * 0.4, 0.85), 3),
+        "severity": severity,
+        "risk_weight": {"Low": 1, "Medium": 2, "High": 3, "Critical": 5}[severity],
+        "risk_score": score,
+        "area_percent": round(edge_density * 100, 2),
+        "bbox": None,
+        "analysis_mode": "visual anomaly fallback",
+    }
+
 @app.get("/")
 def root():
     return {"message": "Road Condition Intelligence API"}
@@ -110,6 +132,11 @@ async def analyze(file: UploadFile = File(...)):
             "area_percent": round(area_percent, 2),
             "bbox": extract_bbox_info([x1, y1, x2, y2])
         })
+
+    if not defects and not os.getenv("ROAD_DEFECT_MODEL_PATH"):
+        fallback = visual_anomaly_fallback(img)
+        if fallback:
+            defects.append(fallback)
     
     risk_score = compute_risk_score(defects)
     
