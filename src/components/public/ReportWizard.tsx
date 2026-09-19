@@ -42,30 +42,20 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   });
 
   const [aiResult, setAiResult] = useState<AiAnalysisResult>({
-    riskScore: 86,
-    severity: 'High',
-    confidence: 95,
-    detectedDefect: 'Pothole',
-    detectedAreaPercent: 18.4,
-    modelVersion: 'RG-Vision v4.2',
+    riskScore: 0,
+    severity: 'Low',
+    confidence: 0,
+    detectedDefect: 'Other',
+    detectedAreaPercent: 0,
+    modelVersion: 'Road Defect YOLO',
     factors: {
-      surfaceDamage: 'High',
-      trafficExposure: 'High',
-      waterAccumulation: 'Medium',
+      surfaceDamage: 'Low',
+      trafficExposure: 'Low',
+      waterAccumulation: 'Low',
       visibility: 'Low',
     },
-    explanation:
-      'Deep cavity located on high-volume arterial road. Video telemetry confirms significant wheel impact disruption.',
-    recommendedAction:
-      'Deploy Cold Mix Asphalt patching unit within 24 hours. Set up temporary caution cones.',
-    boundingBox: {
-      x: 28,
-      y: 35,
-      width: 44,
-      height: 38,
-    },
-    videoFramesAnalyzed: 142,
-    motionImpactSeverity: 'Severe Vehicle Jolt Detected (0.78g)',
+    explanation: 'Upload a road image to begin analysis.',
+    recommendedAction: 'No recommendation until an image is analyzed.',
   });
 
   const [createdTicket, setCreatedTicket] = useState<Complaint | null>(null);

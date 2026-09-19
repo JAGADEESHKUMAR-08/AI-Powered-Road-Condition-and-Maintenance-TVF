@@ -7,6 +7,7 @@ import torch
 from PIL import Image
 import io
 import json
+import os
 
 app = FastAPI(title="Road Condition API")
 
@@ -19,12 +20,23 @@ app.add_middleware(
 )
 
 model = None
+ROAD_DEFECT_CLASSES = {
+    "pothole": "Pothole",
+    "crack": "Crack",
+    "water_accumulation": "Water Accumulation",
+    "damaged_surface": "Damaged Surface",
+    "road_edge_damage": "Road Edge Damage",
+    "drainage_issue": "Drainage Issue",
+}
 
 def load_model():
     global model
     if model is None:
-        model = torch.hub.load('ultralytics/yolov5', 'yolov5s', trust_repo=True)
-        model.classes = [0, 1, 2, 3]
+        model_path = os.getenv("ROAD_DEFECT_MODEL_PATH")
+        if model_path and os.path.exists(model_path):
+            model = torch.hub.load("ultralytics/yolov5", "custom", path=model_path, trust_repo=True)
+        else:
+            model = torch.hub.load("ultralytics/yolov5", "yolov5s", trust_repo=True)
     return model
 
 def classify_severity(confidence: float, area: float) -> str:
@@ -40,8 +52,7 @@ def classify_severity(confidence: float, area: float) -> str:
 def compute_risk_score(defects: list) -> float:
     if not defects:
         return 0.0
-    total = sum(d.get("risk_weight", 1.0) for d in defects)
-    return min(round(total / len(defects), 2), 100.0)
+    return min(round(max(d["risk_score"] for d in defects), 2), 100.0)
 
 def extract_bbox_info(xyxy):
     return {
@@ -74,20 +85,29 @@ async def analyze(file: UploadFile = File(...)):
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Road defect model is unavailable") from exc
     detections = results.xyxy[0].tolist()
+    image_height, image_width = img.shape[:2]
     
     defects = []
     for det in detections:
         x1, y1, x2, y2, conf, cls_id = det
-        class_name = results.names[int(cls_id)]
+        raw_class_name = results.names[int(cls_id)]
+        class_key = raw_class_name.lower().replace(" ", "_")
+        if class_key not in ROAD_DEFECT_CLASSES:
+            continue
+        class_name = ROAD_DEFECT_CLASSES[class_key]
         area = (x2 - x1) * (y2 - y1)
         severity = classify_severity(conf, area)
         risk_weight = {"Low": 1, "Medium": 2, "High": 3, "Critical": 5}[severity]
+        area_percent = area / (image_width * image_height) * 100
+        defect_risk = min(round(conf * 100 * (0.5 + min(area_percent / 20, 0.5)), 2), 100.0)
         
         defects.append({
             "type": class_name,
             "confidence": round(conf, 3),
             "severity": severity,
             "risk_weight": risk_weight,
+            "risk_score": defect_risk,
+            "area_percent": round(area_percent, 2),
             "bbox": extract_bbox_info([x1, y1, x2, y2])
         })
     

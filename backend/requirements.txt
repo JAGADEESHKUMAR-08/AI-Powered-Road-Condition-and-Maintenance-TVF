@@ -4,6 +4,8 @@ python-multipart
 torch
 torchvision
 ultralytics
+scipy
+seaborn
 opencv-python
 numpy
 pandas

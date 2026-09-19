@@ -42,12 +42,14 @@ export const StepEvidence: React.FC<StepEvidenceProps> = ({
   onCancel,
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [activeMediaTab, setActiveMediaTab] = useState<MediaType>(mediaItem.type || 'image');
   const [confirmedTruth, setConfirmedTruth] = useState(true);
 
   // Trigger real-time AI scan whenever media changes
   const runAiTriage = async (item: EvidenceMediaItem, type: IssueType) => {
     setIsAnalyzing(true);
+    setAnalysisError(null);
     try {
       const result = await analyzeRoadMedia(item.url, item.type, type);
       onUpdateAiAnalysis(result);
@@ -55,6 +57,8 @@ export const StepEvidence: React.FC<StepEvidenceProps> = ({
         onSelectType(result.detectedDefect);
       }
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Image analysis failed.';
+      setAnalysisError(message);
       console.error(e);
     } finally {
       setIsAnalyzing(false);
@@ -145,6 +149,12 @@ export const StepEvidence: React.FC<StepEvidenceProps> = ({
 
       {/* Main Grid: Left Upload & Media Preview, Right Instant AI Risk Score & Factors */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {analysisError && (
+          <div className="lg:col-span-12 flex items-center gap-2 rounded-xl border border-amber-700/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {analysisError}
+          </div>
+        )}
         
         {/* Left 6 Columns: Upload & Media Player Canvas */}
         <div className="lg:col-span-6 space-y-5">
